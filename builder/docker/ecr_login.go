@@ -14,11 +14,9 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsCredentials "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecrpublic"
-	awsbase "github.com/hashicorp/aws-sdk-go-base"
 	"github.com/hashicorp/go-cleanhttp"
 )
 
@@ -69,15 +67,6 @@ func (c *AwsAccessConfig) PublicEcrLogin(ecrUrl string) (string, string, error) 
 	config = config.WithHTTPClient(cleanhttp.DefaultClient())
 	transport := config.HTTPClient.Transport.(*http.Transport)
 	transport.Proxy = http.ProxyFromEnvironment
-
-	// Figure out which possible credential providers are valid; test that we
-	// can get credentials via the selected providers, and set the providers in
-	// the config.
-	creds, err := c.GetCredentials(config)
-	if err != nil {
-		return "", "", err
-	}
-	config.WithCredentials(creds)
 
 	// Create session options based on our AWS config
 	opts := session.Options{
@@ -151,15 +140,6 @@ func (c *AwsAccessConfig) EcrGetLogin(ecrUrl string) (string, string, error) {
 	transport := config.HTTPClient.Transport.(*http.Transport)
 	transport.Proxy = http.ProxyFromEnvironment
 
-	// Figure out which possible credential providers are valid; test that we
-	// can get credentials via the selected providers, and set the providers in
-	// the config.
-	creds, err := c.GetCredentials(config)
-	if err != nil {
-		return "", "", fmt.Errorf(err.Error())
-	}
-	config.WithCredentials(creds)
-
 	// Create session options based on our AWS config
 	opts := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
@@ -205,21 +185,4 @@ func (c *AwsAccessConfig) EcrGetLogin(ecrUrl string) (string, string, error) {
 	log.Printf("Successfully got login for ECR: %s", ecrUrl)
 
 	return authParts[0], authParts[1], nil
-}
-
-// GetCredentials gets credentials from the environment, shared credentials,
-// the session (which may include a credential process), or ECS/EC2 metadata
-// endpoints. GetCredentials also validates the credentials and the ability to
-// assume a role or will return an error if unsuccessful.
-func (c *AwsAccessConfig) GetCredentials(config *aws.Config) (*awsCredentials.Credentials, error) {
-	// Reload values into the config used by the Packer-Terraform shared SDK
-	awsbaseConfig := &awsbase.Config{
-		AccessKey:    c.AccessKey,
-		DebugLogging: false,
-		Profile:      c.Profile,
-		SecretKey:    c.SecretKey,
-		Token:        c.Token,
-	}
-
-	return awsbase.GetCredentials(awsbaseConfig)
 }
